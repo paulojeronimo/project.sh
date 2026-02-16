@@ -33,7 +33,8 @@ git worktree add --detach "${WORKTREE_DIR}" HEAD >/dev/null
 
 (
   cd "${WORKTREE_DIR}"
-  git checkout --orphan gh-pages >/dev/null 2>&1
+  ORPHAN_BRANCH="publish-gh-pages-$$"
+  git checkout --orphan "${ORPHAN_BRANCH}" >/dev/null 2>&1
   git rm -rf . >/dev/null 2>&1 || true
   find . -mindepth 1 -maxdepth 1 ! -name ".git" -exec rm -rf {} +
 
@@ -42,7 +43,7 @@ git worktree add --detach "${WORKTREE_DIR}" HEAD >/dev/null
 
   git add install scripts
   git commit -m "publish: regenerate gh-pages" >/dev/null
-  git push --force origin gh-pages >/dev/null
+  git push --force origin HEAD:gh-pages >/dev/null
 )
 
 echo "Published gh-pages with only: install, scripts/"
