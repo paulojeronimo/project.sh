@@ -25,9 +25,11 @@ cp -R "${ROOT_DIR}/scripts" "${SNAPSHOT_DIR}/scripts"
 
 LAST_COMMIT_HASH="$(git rev-parse HEAD)"
 PUBLISH_TIMESTAMP="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+ORIGIN_INSTALL_URL="https://paulojeronimo.com/project.sh/install"
 cat > "${SNAPSHOT_DIR}/scripts/project.sh.info" <<EOF_INFO
 PROJECT_SH_LAST_COMMIT="${LAST_COMMIT_HASH}"
 PROJECT_SH_PUBLISH_AT="${PUBLISH_TIMESTAMP}"
+PROJECT_SH_ORIGIN_INSTALL="${ORIGIN_INSTALL_URL}"
 EOF_INFO
 
 cleanup() {

@@ -135,6 +135,12 @@ helper_action_is_available() {
   action_todo)
     helper_action_requires_functions cli_todo
     ;;
+  action_info)
+    helper_action_requires_functions action_info
+    ;;
+  action_self_update)
+    helper_action_requires_functions action_self_update
+    ;;
   *)
     return 1
     ;;
