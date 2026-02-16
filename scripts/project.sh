@@ -11,7 +11,10 @@ cd "$BASE_DIR"
 source "${BASE_DIR}/scripts/common.sh"
 source "${BASE_DIR}/scripts/project/.infra/common.sh"
 source "${BASE_DIR}/scripts/project/.infra/modules.sh"
+source "${BASE_DIR}/scripts/project/.infra/help.sh"
 source "${BASE_DIR}/scripts/project/.infra/entrypoint.sh"
 helper_modules_bootstrap "${PROJECT_MODULES_DIR}" "${PROJECT_MODULES_CONF}"
+helper_help_bootstrap
+helper_help_validate_for_modules "${PROJECT_MODULES_CONF}"
 
 main "$@"
