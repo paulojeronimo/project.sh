@@ -66,10 +66,20 @@ usage() {
       continue
       ;;
     esac
+    local module_label="${module_rel%.sh}"
     local usage_fn
     usage_fn="$(helper_help_usage_fn_for_module "${module_rel}")"
     if declare -F "${usage_fn}" >/dev/null 2>&1; then
-      "${usage_fn}"
+      while IFS= read -r usage_line || [ -n "${usage_line}" ]; do
+        [ -n "${usage_line}" ] || continue
+        if [[ "${usage_line}" == *$'\t'* ]]; then
+          local command_part="${usage_line%%$'\t'*}"
+          local description_part="${usage_line#*$'\t'}"
+          printf '  %-16s (%s) %s\n' "${command_part}" "${module_label}" "${description_part}"
+        else
+          echo "${usage_line}"
+        fi
+      done < <("${usage_fn}")
     fi
   done <"${PROJECT_MODULES_CONF}"
 }
