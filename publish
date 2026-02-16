@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${ROOT_DIR}"
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Working tree must be clean before running publish." >&2
+  exit 1
+fi
+
+for required in install scripts; do
+  if [ ! -e "${required}" ]; then
+    echo "Missing required path: ${required}" >&2
+    exit 1
+  fi
+done
+
+TMP_DIR="$(mktemp -d)"
+WORKTREE_DIR="${TMP_DIR}/gh-pages-worktree"
+SNAPSHOT_DIR="${TMP_DIR}/snapshot"
+mkdir -p "${SNAPSHOT_DIR}"
+cp "${ROOT_DIR}/install" "${SNAPSHOT_DIR}/install"
+cp -R "${ROOT_DIR}/scripts" "${SNAPSHOT_DIR}/scripts"
+
+cleanup() {
+  git worktree remove --force "${WORKTREE_DIR}" >/dev/null 2>&1 || true
+  rm -rf "${TMP_DIR}"
+}
+trap cleanup EXIT INT TERM
+
+git worktree add --detach "${WORKTREE_DIR}" HEAD >/dev/null
+
+(
+  cd "${WORKTREE_DIR}"
+  git checkout --orphan gh-pages >/dev/null 2>&1
+  git rm -rf . >/dev/null 2>&1 || true
+  find . -mindepth 1 -maxdepth 1 ! -name ".git" -exec rm -rf {} +
+
+  cp "${SNAPSHOT_DIR}/install" "./install"
+  cp -R "${SNAPSHOT_DIR}/scripts" "./scripts"
+
+  git add install scripts
+  git commit -m "publish: regenerate gh-pages" >/dev/null
+  git push --force origin gh-pages >/dev/null
+)
+
+echo "Published gh-pages with only: install, scripts/"
