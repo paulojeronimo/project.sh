@@ -23,7 +23,7 @@ LOG_DIR="${LOG_DIR:-../${PROJECT_DIR}.logs}"
 LOG_DIR_ABS="$(cd "$BASE_DIR" && mkdir -p "$LOG_DIR" && cd "$LOG_DIR" && pwd)"
 
 # Helper: fail early with a clear message when DATA_DIR is not writable.
-_onepage_cv_assert_data_dir_writable() {
+_project_core_assert_data_dir_writable() {
   # We expect runtime data/logs to be writable by the user running scripts.
   if [ ! -d "$DATA_DIR_ABS" ]; then
     echo "Aborting: DATA_DIR_ABS does not exist: $DATA_DIR_ABS" >&2
@@ -41,7 +41,7 @@ _onepage_cv_assert_data_dir_writable() {
   fi
 }
 
-_onepage_cv_explain_log_dir_permission_fix() {
+_project_core_explain_log_dir_permission_fix() {
   local target_dir="$1"
   echo "" >&2
   echo "Permission fix (recommended):" >&2
@@ -61,11 +61,11 @@ case "$DATA_DIR_ABS" in
     ;;
 esac
 
-_onepage_cv_init_log() {
-  if [ -n "${_ONEPAGE_CV_LOG_INITIALIZED:-}" ]; then
+_project_core_init_log() {
+  if [ -n "${_PROJECT_CORE_LOG_INITIALIZED:-}" ]; then
     return 0
   fi
-  _ONEPAGE_CV_LOG_INITIALIZED=1
+  _PROJECT_CORE_LOG_INITIALIZED=1
 
   # The first non-common script in the source stack.
   local caller=""
@@ -109,14 +109,14 @@ _onepage_cv_init_log() {
     echo "Aborting: could not create log directory: $log_dir" >&2
     echo "BASE_DIR=$BASE_DIR" >&2
     echo "LOG_DIR_ABS=$LOG_DIR_ABS" >&2
-    _onepage_cv_explain_log_dir_permission_fix "$LOG_DIR_ABS"
+    _project_core_explain_log_dir_permission_fix "$LOG_DIR_ABS"
     return 1
   fi
   if [ ! -w "$log_dir" ]; then
     echo "Aborting: log directory is not writable by current user: $log_dir" >&2
     echo "BASE_DIR=$BASE_DIR" >&2
     echo "LOG_DIR_ABS=$LOG_DIR_ABS" >&2
-    _onepage_cv_explain_log_dir_permission_fix "$log_dir"
+    _project_core_explain_log_dir_permission_fix "$log_dir"
     return 1
   fi
 
@@ -131,7 +131,7 @@ _onepage_cv_init_log() {
     echo "Aborting: could not write log file: $LOG_PATH" >&2
     echo "BASE_DIR=$BASE_DIR" >&2
     echo "LOG_DIR_ABS=$LOG_DIR_ABS" >&2
-    _onepage_cv_explain_log_dir_permission_fix "$log_dir"
+    _project_core_explain_log_dir_permission_fix "$log_dir"
     return 1
   fi
 
@@ -160,7 +160,7 @@ _onepage_cv_init_log() {
 
 # Run a command bypassing the tee redirection created by common.sh.
 # Useful for interactive tools (e.g. docker compose) that should own the terminal.
-onepage_cv_run_without_tee() {
+project_core_run_without_tee() {
   if [ -n "${LOG_PATH:-}" ]; then
     "$@" 1>&3 2>&4
     return $?
@@ -169,7 +169,7 @@ onepage_cv_run_without_tee() {
 }
 
 # Capture stdout while still bypassing tee for stderr (to keep interactive errors visible).
-onepage_cv_capture_without_tee() {
+project_core_capture_without_tee() {
   if [ -n "${LOG_PATH:-}" ]; then
     "$@" 2>&4
     return $?
@@ -177,9 +177,9 @@ onepage_cv_capture_without_tee() {
   "$@"
 }
 
-_onepage_cv_init_log
+_project_core_init_log
 
-_onepage_cv_emit_header_line() {
+_project_core_emit_header_line() {
   local line="$1"
   # For project entrypoints, keep header only in LOG_PATH (not in terminal output).
   if { [ "${SCRIPT_REL_PATH:-}" = "project.sh" ] || [ "${SCRIPT_REL_PATH:-}" = "scripts/project.sh" ]; } && [ -n "${LOG_PATH:-}" ]; then
@@ -189,34 +189,30 @@ _onepage_cv_emit_header_line() {
   echo "$line"
 }
 
-_onepage_cv_emit_header_line "RUN_AT=$(date -Is 2>/dev/null || date)"
+_project_core_emit_header_line "RUN_AT=$(date -Is 2>/dev/null || date)"
 
 if [ -n "${SCRIPT_REL_PATH:-}" ]; then
   cmdline="$(printf '%q' "$SCRIPT_REL_PATH")"
   for arg in "$@"; do
     cmdline+=" $(printf '%q' "$arg")"
   done
-  _onepage_cv_emit_header_line "CMDLINE=${cmdline}"
+  _project_core_emit_header_line "CMDLINE=${cmdline}"
 fi
 
-_onepage_cv_emit_header_line "BASE_DIR=${BASE_DIR}"
-_onepage_cv_emit_header_line "DATA_DIR=${DATA_DIR}"
-_onepage_cv_emit_header_line "DATA_DIR_ABS=${DATA_DIR_ABS}"
-_onepage_cv_emit_header_line "LOG_DIR=${LOG_DIR}"
-_onepage_cv_emit_header_line "LOG_DIR_ABS=${LOG_DIR_ABS}"
-_onepage_cv_emit_header_line "PRIVATE_DIR=${PRIVATE_DIR}"
-_onepage_cv_emit_header_line "LOG_PATH=${LOG_PATH:-}"
+_project_core_emit_header_line "BASE_DIR=${BASE_DIR}"
+_project_core_emit_header_line "DATA_DIR=${DATA_DIR}"
+_project_core_emit_header_line "DATA_DIR_ABS=${DATA_DIR_ABS}"
+_project_core_emit_header_line "LOG_DIR=${LOG_DIR}"
+_project_core_emit_header_line "LOG_DIR_ABS=${LOG_DIR_ABS}"
+_project_core_emit_header_line "PRIVATE_DIR=${PRIVATE_DIR}"
+_project_core_emit_header_line "LOG_PATH=${LOG_PATH:-}"
 
 if command -v id >/dev/null 2>&1; then
-  _onepage_cv_emit_header_line "USER_UID=$(id -u)"
-  _onepage_cv_emit_header_line "USER_GID=$(id -g)"
+  _project_core_emit_header_line "USER_UID=$(id -u)"
+  _project_core_emit_header_line "USER_GID=$(id -g)"
 fi
 
-onepage_cv_env_init() {
-  # Remote environment shortcuts used by scripts like scripts/sync-to.sh and scripts/ssh-to.sh.
-  # This is intentionally opt-in (call from the scripts) to avoid affecting other tooling.
-  if ! declare -p envs >/dev/null 2>&1; then
-    declare -gA envs=(["local"]="127.0.0.1" ["test_pj"]="192.168.15.38")
-  fi
-  ENV="${ENV:-test_pj}"
+project_core_env_init() {
+  # Optional hook for downstream projects.
+  :
 }
