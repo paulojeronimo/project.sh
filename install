@@ -4,6 +4,8 @@ set -eu
 PROJECT_ROOT="${PROJECT_ROOT:-$PWD}"
 PROJECT_SH_REPO="${PROJECT_SH_REPO:-https://github.com/paulojeronimo/project.sh.git}"
 PROJECT_SH_REF="${PROJECT_SH_REF:-main}"
+PROJECT_SH_INFO_URL_PRIMARY="${PROJECT_SH_INFO_URL_PRIMARY:-https://paulojeronimo.com/project.sh/scripts/project.sh.info}"
+PROJECT_SH_INFO_URL_FALLBACK="${PROJECT_SH_INFO_URL_FALLBACK:-https://raw.githubusercontent.com/paulojeronimo/project.sh/gh-pages/scripts/project.sh.info}"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -24,6 +26,10 @@ fi
 mkdir -p "${PROJECT_ROOT}/scripts"
 cp -R "${REPO_DIR}/scripts/." "${PROJECT_ROOT}/scripts/"
 
+if ! curl -fsSL "${PROJECT_SH_INFO_URL_PRIMARY}" -o "${PROJECT_ROOT}/scripts/project.sh.info"; then
+  curl -fsSL "${PROJECT_SH_INFO_URL_FALLBACK}" -o "${PROJECT_ROOT}/scripts/project.sh.info"
+fi
+
 if [ -f "${PROJECT_ROOT}/scripts/project.sh" ]; then
   chmod +x "${PROJECT_ROOT}/scripts/project.sh"
 fi
@@ -32,3 +38,4 @@ ln -sfn "scripts/project.sh" "${PROJECT_ROOT}/project.sh"
 
 echo "Installed scripts from ${PROJECT_SH_REPO}@${PROJECT_SH_REF}"
 echo "Created link: ${PROJECT_ROOT}/project.sh -> scripts/project.sh"
+echo "Saved metadata: ${PROJECT_ROOT}/scripts/project.sh.info"
