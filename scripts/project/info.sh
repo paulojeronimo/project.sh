@@ -66,7 +66,7 @@ action_self_update() {
     cp "${modules_conf}" "${backup_modules_conf}"
   fi
 
-  if ! project_core_run_without_tee curl -sSL "${install_url}" | sh; then
+  if ! curl -fsSL "${install_url}" | sh; then
     rm -f "${backup_modules_conf}"
     return 1
   fi
