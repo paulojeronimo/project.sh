@@ -10,7 +10,7 @@ PROJECT_MODULES_CONF="${PROJECT_MODULES_DIR}/modules.conf"
 
 if [ ! -f "${PROJECT_SH_DIR}/scripts/common.sh" ]; then
   echo "Missing project.sh runtime at ${PROJECT_SH_DIR}." >&2
-  echo "Install it with: ./scripts/project-core/install.sh" >&2
+  echo "Install it with: ./scripts/project-sh/install.sh" >&2
   exit 1
 fi
 
