@@ -98,6 +98,48 @@ helper_modules_source_from_conf() {
   done <"${conf_path}"
 }
 
+helper_modules_list_unique_from_confs() {
+  local seen_file=""
+  local conf_path=""
+  local module_rel_path=""
+  seen_file="$(mktemp)"
+  : >"${seen_file}"
+
+  for conf_path in "$@"; do
+    [ -f "${conf_path}" ] || continue
+    while IFS= read -r module_rel_path || [ -n "${module_rel_path}" ]; do
+      case "${module_rel_path}" in
+      "" | \#*)
+        continue
+        ;;
+      esac
+      if grep -Fxq "${module_rel_path}" "${seen_file}"; then
+        continue
+      fi
+      printf '%s\n' "${module_rel_path}" >>"${seen_file}"
+      printf '%s\n' "${module_rel_path}"
+    done <"${conf_path}"
+  done
+
+  rm -f "${seen_file}"
+}
+
+helper_modules_source_from_confs() {
+  local modules_dir="$1"
+  shift
+
+  local module_rel_path=""
+  local module_abs_path=""
+  while IFS= read -r module_rel_path || [ -n "${module_rel_path}" ]; do
+    module_abs_path="${modules_dir}/${module_rel_path}"
+    if [ ! -f "${module_abs_path}" ]; then
+      echo "Missing module in ${modules_dir}: ${module_rel_path}" >&2
+      return 1
+    fi
+    source "${module_abs_path}"
+  done < <(helper_modules_list_unique_from_confs "$@")
+}
+
 helper_modules_bootstrap() {
   local modules_dir="$1"
   local conf_path="$2"
@@ -107,9 +149,6 @@ helper_modules_bootstrap() {
     helper_modules_generate_conf "${modules_dir}" "${conf_path}" "$@"
   fi
   if helper_modules_conf_has_nested_entries "${conf_path}"; then
-    helper_modules_generate_conf "${modules_dir}" "${conf_path}" "$@"
-  fi
-  if ! helper_modules_conf_matches_directory "${modules_dir}" "${conf_path}" "$@"; then
     helper_modules_generate_conf "${modules_dir}" "${conf_path}" "$@"
   fi
 

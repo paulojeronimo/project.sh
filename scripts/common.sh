@@ -216,3 +216,9 @@ project_core_env_init() {
   # Optional hook for downstream projects.
   :
 }
+
+# Optional downstream extensions; keep project-core independent.
+if [ -f "${BASE_DIR}/scripts/common.local.sh" ]; then
+  # shellcheck source=/dev/null
+  source "${BASE_DIR}/scripts/common.local.sh"
+fi

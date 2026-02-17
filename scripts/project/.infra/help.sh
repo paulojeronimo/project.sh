@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 HELP_MODULES_DIR="${BASE_DIR}/scripts/project/help"
-HELP_MODULES_CONF="${HELP_MODULES_DIR}/modules.conf"
 
 helper_help_module_id_from_relpath() {
   local module_rel="$1"
@@ -17,7 +16,6 @@ helper_help_usage_fn_for_module() {
 }
 
 helper_help_validate_for_modules() {
-  local project_modules_conf="$1"
   local rc=0
   local module_rel=""
 
@@ -28,20 +26,13 @@ helper_help_validate_for_modules() {
       ;;
     esac
 
-    local help_path="${HELP_MODULES_DIR}/${module_rel}"
-    if [ ! -f "${help_path}" ]; then
-      echo "Missing help module for ${module_rel}: expected ${help_path}" >&2
-      rc=1
-      continue
-    fi
-
     local usage_fn
     usage_fn="$(helper_help_usage_fn_for_module "${module_rel}")"
     if ! declare -F "${usage_fn}" >/dev/null 2>&1; then
       echo "Missing help usage function ${usage_fn} for ${module_rel}." >&2
       rc=1
     fi
-  done <"${project_modules_conf}"
+  done < <(helper_modules_list_unique_from_confs "$@")
 
   return "${rc}"
 }
@@ -51,7 +42,21 @@ helper_help_bootstrap() {
     return 0
   fi
 
-  helper_modules_bootstrap "${HELP_MODULES_DIR}" "${HELP_MODULES_CONF}"
+  local module_rel=""
+  local help_path=""
+  while IFS= read -r module_rel || [ -n "${module_rel}" ]; do
+    case "${module_rel}" in
+    "" | \#*)
+      continue
+      ;;
+    esac
+    help_path="${HELP_MODULES_DIR}/${module_rel}"
+    if [ ! -f "${help_path}" ]; then
+      echo "Missing help module for ${module_rel}: expected ${help_path}" >&2
+      return 1
+    fi
+    source "${help_path}"
+  done < <(helper_modules_list_unique_from_confs "$@")
 }
 
 usage() {
@@ -81,5 +86,5 @@ usage() {
         fi
       done < <("${usage_fn}")
     fi
-  done <"${PROJECT_MODULES_CONF}"
+  done < <(helper_modules_list_unique_from_confs "${PROJECT_MODULES_CONF}" "${PROJECT_MODULES_LOCAL_CONF}")
 }

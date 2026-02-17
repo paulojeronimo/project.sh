@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
 BASE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PROJECT_MODULES_DIR="${BASE_DIR}/scripts/project"
 PROJECT_MODULES_CONF="${PROJECT_MODULES_DIR}/modules.conf"
+PROJECT_MODULES_LOCAL_CONF="${PROJECT_MODULES_DIR}/modules.local.conf"
 
 cd "$BASE_DIR"
 source "${BASE_DIR}/scripts/common.sh"
@@ -14,7 +15,12 @@ source "${BASE_DIR}/scripts/project/.infra/modules.sh"
 source "${BASE_DIR}/scripts/project/.infra/help.sh"
 source "${BASE_DIR}/scripts/project/.infra/entrypoint.sh"
 helper_modules_bootstrap "${PROJECT_MODULES_DIR}" "${PROJECT_MODULES_CONF}"
-helper_help_bootstrap
-helper_help_validate_for_modules "${PROJECT_MODULES_CONF}"
+if [ -f "${PROJECT_MODULES_LOCAL_CONF}" ]; then
+  helper_modules_source_from_confs \
+    "${PROJECT_MODULES_DIR}" \
+    "${PROJECT_MODULES_LOCAL_CONF}"
+fi
+helper_help_bootstrap "${PROJECT_MODULES_CONF}" "${PROJECT_MODULES_LOCAL_CONF}"
+helper_help_validate_for_modules "${PROJECT_MODULES_CONF}" "${PROJECT_MODULES_LOCAL_CONF}"
 
 main "$@"
