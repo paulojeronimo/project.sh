@@ -30,13 +30,9 @@ action_self_update() {
   fi
 
   local modules_conf="${BASE_DIR}/scripts/project/modules.conf"
-  local common_sh="${BASE_DIR}/scripts/common.sh"
   local backup_modules_conf=""
-  local backup_common_sh=""
   local should_restore_modules_conf=0
-  local should_restore_common_sh=0
   local origin_modules_url=""
-  local origin_common_url=""
   local install_base="${install_url}"
   install_base="${install_base%%\?*}"
   install_base="${install_base%%\#*}"
@@ -44,11 +40,9 @@ action_self_update() {
   case "${install_base}" in
   */install)
     origin_modules_url="${install_base%/install}/scripts/project/modules.conf"
-    origin_common_url="${install_base%/install}/scripts/common.sh"
     ;;
   */install.sh)
     origin_modules_url="${install_base%/install.sh}/scripts/project/modules.conf"
-    origin_common_url="${install_base%/install.sh}/scripts/common.sh"
     ;;
   esac
 
@@ -67,33 +61,13 @@ action_self_update() {
     rm -f "${origin_tmp}"
   fi
 
-  if [ -f "${common_sh}" ]; then
-    local origin_common_tmp=""
-    origin_common_tmp="$(mktemp)"
-    if [ -n "${origin_common_url}" ] && curl -fsSL "${origin_common_url}" -o "${origin_common_tmp}" 2>/dev/null; then
-      if ! cmp -s "${common_sh}" "${origin_common_tmp}"; then
-        should_restore_common_sh=1
-      fi
-    else
-      # Conservative fallback: preserve local common.sh when origin baseline
-      # cannot be resolved.
-      should_restore_common_sh=1
-    fi
-    rm -f "${origin_common_tmp}"
-  fi
-
   if [ "${should_restore_modules_conf}" -eq 1 ]; then
     backup_modules_conf="$(mktemp)"
     cp "${modules_conf}" "${backup_modules_conf}"
   fi
-  if [ "${should_restore_common_sh}" -eq 1 ]; then
-    backup_common_sh="$(mktemp)"
-    cp "${common_sh}" "${backup_common_sh}"
-  fi
 
   if ! curl -fsSL "${install_url}" | sh; then
     rm -f "${backup_modules_conf}"
-    rm -f "${backup_common_sh}"
     return 1
   fi
 
@@ -101,10 +75,5 @@ action_self_update() {
     cp "${backup_modules_conf}" "${modules_conf}"
     rm -f "${backup_modules_conf}"
     echo "Restored local scripts/project/modules.conf after self-update."
-  fi
-  if [ "${should_restore_common_sh}" -eq 1 ] && [ -n "${backup_common_sh}" ]; then
-    cp "${backup_common_sh}" "${common_sh}"
-    rm -f "${backup_common_sh}"
-    echo "Restored local scripts/common.sh after self-update."
   fi
 }
