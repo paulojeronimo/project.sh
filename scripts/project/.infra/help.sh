@@ -59,10 +59,50 @@ helper_help_bootstrap() {
   done < <(helper_modules_list_unique_from_confs "$@")
 }
 
+helper_help_max_command_width() {
+  local max_width=0
+  local module_rel=""
+  local usage_fn=""
+  local usage_line=""
+  local command_part=""
+  local current_width=0
+
+  while IFS= read -r module_rel || [ -n "${module_rel}" ]; do
+    case "${module_rel}" in
+    "" | \#*)
+      continue
+      ;;
+    esac
+    usage_fn="$(helper_help_usage_fn_for_module "${module_rel}")"
+    if ! declare -F "${usage_fn}" >/dev/null 2>&1; then
+      continue
+    fi
+    while IFS= read -r usage_line || [ -n "${usage_line}" ]; do
+      [ -n "${usage_line}" ] || continue
+      if [[ "${usage_line}" != *$'\t'* ]]; then
+        continue
+      fi
+      command_part="${usage_line%%$'\t'*}"
+      current_width=${#command_part}
+      if [ "${current_width}" -gt "${max_width}" ]; then
+        max_width="${current_width}"
+      fi
+    done < <("${usage_fn}")
+  done < <(helper_modules_list_unique_from_confs "${PROJECT_MODULES_CONF}" "${PROJECT_MODULES_LOCAL_CONF}")
+
+  echo "${max_width}"
+}
+
 usage() {
   echo "Usage: ./project.sh <command> [args]"
   echo
   echo "Available commands:"
+
+  local command_width=0
+  command_width="$(helper_help_max_command_width)"
+  if [ "${command_width}" -lt 1 ]; then
+    command_width=16
+  fi
 
   local module_rel=""
   while IFS= read -r module_rel || [ -n "${module_rel}" ]; do
@@ -80,7 +120,7 @@ usage() {
         if [[ "${usage_line}" == *$'\t'* ]]; then
           local command_part="${usage_line%%$'\t'*}"
           local description_part="${usage_line#*$'\t'}"
-          printf '  %-16s (%s) %s\n' "${command_part}" "${module_label}" "${description_part}"
+          printf "  %-${command_width}s (%s) %s\n" "${command_part}" "${module_label}" "${description_part}"
         else
           echo "${usage_line}"
         fi
