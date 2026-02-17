@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+
+HELP_MODULES_DIR="${BASE_DIR}/scripts/project/help"
+
+helper_help_module_id_from_relpath() {
+  local module_rel="$1"
+  local module_name="${module_rel%.sh}"
+  echo "${module_name//[^a-zA-Z0-9_]/_}"
+}
+
+helper_help_usage_fn_for_module() {
+  local module_rel="$1"
+  local module_id
+  module_id="$(helper_help_module_id_from_relpath "${module_rel}")"
+  echo "help_usage_${module_id}_commands"
+}
+
+helper_help_validate_for_modules() {
+  local rc=0
+  local module_rel=""
+
+  while IFS= read -r module_rel || [ -n "${module_rel}" ]; do
+    case "${module_rel}" in
+    "" | \#*)
+      continue
+      ;;
+    esac
+
+    local usage_fn
+    usage_fn="$(helper_help_usage_fn_for_module "${module_rel}")"
+    if ! declare -F "${usage_fn}" >/dev/null 2>&1; then
+      echo "Missing help usage function ${usage_fn} for ${module_rel}." >&2
+      rc=1
+    fi
+  done < <(helper_modules_list_unique_from_confs "$@")
+
+  return "${rc}"
+}
+
+helper_help_bootstrap() {
+  if [ ! -d "${HELP_MODULES_DIR}" ]; then
+    return 0
+  fi
+
+  local module_rel=""
+  local help_path=""
+  while IFS= read -r module_rel || [ -n "${module_rel}" ]; do
+    case "${module_rel}" in
+    "" | \#*)
+      continue
+      ;;
+    esac
+    help_path="${HELP_MODULES_DIR}/${module_rel}"
+    if [ ! -f "${help_path}" ]; then
+      echo "Missing help module for ${module_rel}: expected ${help_path}" >&2
+      return 1
+    fi
+    source "${help_path}"
+  done < <(helper_modules_list_unique_from_confs "$@")
+}
+
+helper_help_max_command_width() {
+  local max_width=0
+  local module_rel=""
+  local usage_fn=""
+  local usage_line=""
+  local command_part=""
+  local current_width=0
+
+  while IFS= read -r module_rel || [ -n "${module_rel}" ]; do
+    case "${module_rel}" in
+    "" | \#*)
+      continue
+      ;;
+    esac
+    usage_fn="$(helper_help_usage_fn_for_module "${module_rel}")"
+    if ! declare -F "${usage_fn}" >/dev/null 2>&1; then
+      continue
+    fi
+    while IFS= read -r usage_line || [ -n "${usage_line}" ]; do
+      [ -n "${usage_line}" ] || continue
+      if [[ "${usage_line}" != *$'\t'* ]]; then
+        continue
+      fi
+      command_part="${usage_line%%$'\t'*}"
+      current_width=${#command_part}
+      if [ "${current_width}" -gt "${max_width}" ]; then
+        max_width="${current_width}"
+      fi
+    done < <("${usage_fn}")
+  done < <(helper_modules_list_unique_from_confs "${PROJECT_MODULES_CONF}" "${PROJECT_MODULES_LOCAL_CONF}")
+
+  echo "${max_width}"
+}
+
+usage() {
+  echo "Usage: ./project.sh <command> [args]"
+  echo
+  echo "Available commands:"
+
+  local command_width=0
+  command_width="$(helper_help_max_command_width)"
+  if [ "${command_width}" -lt 1 ]; then
+    command_width=16
+  fi
+
+  local module_rel=""
+  while IFS= read -r module_rel || [ -n "${module_rel}" ]; do
+    case "${module_rel}" in
+    "" | \#*)
+      continue
+      ;;
+    esac
+    local module_label="${module_rel%.sh}"
+    local usage_fn
+    usage_fn="$(helper_help_usage_fn_for_module "${module_rel}")"
+    if declare -F "${usage_fn}" >/dev/null 2>&1; then
+      while IFS= read -r usage_line || [ -n "${usage_line}" ]; do
+        [ -n "${usage_line}" ] || continue
+        if [[ "${usage_line}" == *$'\t'* ]]; then
+          local command_part="${usage_line%%$'\t'*}"
+          local description_part="${usage_line#*$'\t'}"
+          printf "  %-${command_width}s (%s) %s\n" "${command_part}" "${module_label}" "${description_part}"
+        else
+          echo "${usage_line}"
+        fi
+      done < <("${usage_fn}")
+    fi
+  done < <(helper_modules_list_unique_from_confs "${PROJECT_MODULES_CONF}" "${PROJECT_MODULES_LOCAL_CONF}")
+}
